@@ -1,0 +1,64 @@
+kind: Service
+apiVersion: v1
+metadata:
+  namespace: vpn
+  name: vpn
+  labels:
+    app: vpn
+  annotations:
+    dns.alpha.kubernetes.io/external: vpn.my.domain
+spec:
+  type: LoadBalancer
+  ports:
+  - name: vpn
+    port: 1194
+    targetPort: vpn
+  selector:
+    app: vpn
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: vpn
+  name: vpn
+  labels:
+    app: vpn
+spec:
+  selector:
+    matchLabels:
+      app: vpn
+  template:
+    metadata:
+      labels:
+        app: vpn
+    spec:
+      volumes:
+      - name: config
+        secret:
+          secretName: vpn-v1
+      containers:
+      - image: lew21/openvpn-k8s
+        imagePullPolicy: Always
+        name: vpn
+        env:
+        - name: K8S_NODES
+          value: 10.136.0.0/16
+        - name: K8S_PODS
+          value: 10.139.0.0/16
+        - name: K8S_SERVICES
+          value: 10.138.0.0/16
+        - name: OVPN_CLIENTS
+          value: 10.137.0.0/24
+        - name: K8S_DNS
+          value: 10.138.0.10
+        ports:
+        - name: vpn
+          containerPort: 1194
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/openvpn
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
